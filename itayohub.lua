@@ -40,6 +40,7 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "itayoHub"
 gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = game:GetService("CoreGui")
 
 local function make(class, props)
     local obj = Instance.new(class)
@@ -436,6 +437,7 @@ local floatGui = Instance.new("ScreenGui")
 floatGui.Name = "itayoHubFloating"
 floatGui.ResetOnSpawn = false
 floatGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+floatGui.Parent = game:GetService("CoreGui")
 floatGui.Enabled = false  -- hidden initially since GUI is open
 
 local floatFrame = make("Frame", {
