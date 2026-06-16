@@ -428,10 +428,109 @@ for i, name in ipairs(tabs) do
     tabButtons[i] = btn
 end
 
--- Close handler
+-- Setup: state.open starts true (GUI visible, floating icon hidden)
+state.open = true
+
+-- ===== FLOATING ICON (for opening/closing GUI) =====
+local floatGui = Instance.new("ScreenGui")
+floatGui.Name = "itayoHubFloating"
+floatGui.ResetOnSpawn = false
+floatGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+floatGui.Enabled = false  -- hidden initially since GUI is open
+
+local floatFrame = make("Frame", {
+    Parent = floatGui,
+    Position = UDim2.new(0.02, 0, 0.5, 0),
+    Size = UDim2.new(0, 54, 0, 54),
+    BackgroundColor3 = Color3.fromRGB(18, 18, 22),
+    BackgroundTransparency = 0.1,
+    BorderSizePixel = 0,
+    Active = true,
+    Draggable = true,
+})
+
+-- Circular mask (rounded via corner)
+make("UICorner", {
+    Parent = floatFrame,
+    CornerRadius = UDim.new(0, 27),
+})
+
+-- Accent glow ring
+local ring = make("Frame", {
+    Parent = floatFrame,
+    Size = UDim2.new(1, 0, 1, 0),
+    BackgroundTransparency = 1,
+    BorderSizePixel = 0,
+    ZIndex = 2,
+})
+make("UIStroke", {
+    Parent = ring,
+    Color = Color3.fromRGB(0, 200, 180),
+    Thickness = 2.5,
+    Transparency = 0.2,
+})
+
+-- Logo image (try GitHub raw, fallback to text "iH")
+local logoImg = make("ImageLabel", {
+    Parent = floatFrame,
+    Size = UDim2.new(1, -12, 1, -12),
+    Position = UDim2.new(0, 6, 0, 6),
+    BackgroundTransparency = 1,
+    Image = "https://raw.githubusercontent.com/itayohub/itayohub/main/logo.png",
+    ScaleType = Enum.ScaleType.Fit,
+    Visible = false,  -- will be shown if load succeeds
+    ZIndex = 3,
+})
+
+-- Text fallback (shown if image doesn't load / as label)
+local floatLabel = make("TextLabel", {
+    Parent = floatFrame,
+    Size = UDim2.new(1, 0, 1, 0),
+    BackgroundTransparency = 1,
+    Text = "iH",
+    TextColor3 = Color3.fromRGB(0, 200, 180),
+    Font = Enum.Font.GothamBold,
+    TextSize = 22,
+    ZIndex = 3,
+})
+
+-- Try to show the image; if it fails silently, fallback stays visible
+local imgLoaded = false
+local function tryLoadLogo()
+    local ok = pcall(function()
+        logoImg.Image = "https://raw.githubusercontent.com/itayohub/itayohub/main/logo.png?v=" .. tick()
+    end)
+    if ok then
+        logoImg.Visible = true
+        floatLabel.Visible = false
+        imgLoaded = true
+    end
+end
+-- Give it a frame to try loading
+spawn(function() wait(0.5) tryLoadLogo() end)
+
+-- Toggle function
+local function showGUI(show)
+    gui.Enabled = show
+    floatGui.Enabled = not show
+    state.open = show
+end
+
+-- Close button: minimize to floating icon
 closeBtn.MouseButton1Click:Connect(function()
-    state.open = false
-    gui:Destroy()
+    showGUI(false)
+end)
+
+-- Floating icon tap: open GUI
+local floatBtn = make("TextButton", {
+    Parent = floatFrame,
+    Size = UDim2.new(1, 0, 1, 0),
+    BackgroundTransparency = 1,
+    Text = "",
+    ZIndex = 5,
+})
+floatBtn.MouseButton1Click:Connect(function()
+    showGUI(true)
 end)
 
 -- Init first tab
@@ -610,6 +709,7 @@ end)
 -- Cleanup on teleport
 lp.OnTeleport:Connect(function()
     if gui then gui:Destroy() end
+    if floatGui then floatGui:Destroy() end
     toggleFly(false)
     toggleInfiniteJump(false)
     for _, o in pairs(crosshairObjs) do pcall(function() o:Remove() end); end
