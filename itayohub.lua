@@ -1,13 +1,11 @@
--- itayoHub v2.0 — Full-featured Roblox Executor GUI
--- With working cheat modules: Speed, Fly, Infinite Jump, Noclip, ESP, Crosshair
+-- itayoHub v2.0 — Delta Executor Compatible
 -- By Hermes Agent for itayohub
 -- Repository: https://github.com/itayohub/itayohub
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local UIS = game:GetService("UserInputService")
 local lp = Players.LocalPlayer
-local mouse = lp:GetMouse()
 local camera = workspace.CurrentCamera
 
 -- ===== COLOR PALETTE =====
@@ -50,7 +48,7 @@ local ESP_COLORS = {C.espRed, C.espOrange, C.espGreen, C.espCyan, C.espPurple}
 
 -- ===== DRAW POOL =====
 local pool = {}
-local esp_objects = {} -- per-player esp drawing objects
+local esp_objects = {}
 
 local function alloc(...)
     for _, o in ipairs({...}) do
@@ -82,8 +80,8 @@ end
 -- ===== DRAWING HELPERS =====
 local function r(pos, size, color, alpha, thickness)
     local sq = Drawing.new("Square")
-    sq.Position = pos
-    sq.Size = size
+    sq.Position = Vector2.new(pos.X, pos.Y)
+    sq.Size = Vector2.new(size.X, size.Y)
     sq.Color = color or C.bg
     sq.Transparency = alpha or 1
     sq.Filled = thickness == nil
@@ -93,7 +91,7 @@ end
 
 local function t(pos, text, size, color, center)
     local tx = Drawing.new("Text")
-    tx.Position = pos
+    tx.Position = Vector2.new(pos.X, pos.Y)
     tx.Text = text
     tx.Size = size or 14
     tx.Color = color or C.text
@@ -104,8 +102,8 @@ end
 
 local function l(from, to, color, thickness)
     local ln = Drawing.new("Line")
-    ln.From = from
-    ln.To = to
+    ln.From = Vector2.new(from.X, from.Y)
+    ln.To = Vector2.new(to.X, to.Y)
     ln.Color = color or C.border
     ln.Thickness = thickness or 1
     return ln
@@ -113,35 +111,8 @@ end
 
 -- ===== LOGO =====
 local LOGO = {
-    "██╗████████╗ █████╗ ██╗   ██╗ ██████╗",
-    "██║╚══██╔══╝██╔══██╗╚██╗ ██╔╝██╔═══██╗",
-    "██║   ██║   ██║  ██║ ╚████╔╝ ██║   ██║",
-    "██║   ██║   ██║  ██║  ╚██╔╝  ██║   ██║",
-    "██║   ██║   ╚█████╔╝   ██║   ╚██████╔╝",
-    "╚═╝   ╚═╝    ╚════╝    ╚═╝    ╚═════╝",
+    "itayoHub", "Modern Executor", "Roblox"
 }
-local LOGO_FULL = {
-    "██████╗██╗ █████╗ ██╗   ██╗ ██████╗ ██╗  ██╗ ██╗ ██╗   ██╗ ██████╗ ",
-    "██╔══╝██║██╔══██╗╚██╗ ██╔╝██╔═══██╗██║  ██║██╔╝ ██║   ██║██╔════╝ ",
-    "█████╗██║██║  ██║ ╚████╔╝ ██║   ██╗███████║██╔╝ ██║   ██║██║  ███╗",
-    "██╔══╝██║██║  ██║  ╚██╔╝  ██║   ██║██╔══██║████████╗ ██║██║   ██║",
-    "██║   ██║╚█████╔╝   ██║   ╚██████╔╝██║  ██║╚██╔═██╔╝╚██████╔╝╚██████╔╝",
-    "╚═╝   ╚═╝ ╚════╝    ╚═╝    ╚═════╝ ╚═╝  ╚═╝ ╚═╝ ╚═╝  ╚═════╝  ╚═════╝ ",
-}
-
-local function drawCompactLogo(topLeft, sz, col)
-    sz = sz or 7; col = col or C.cream
-    for i, ln in ipairs(LOGO) do
-        alloc(t(topLeft + Vector2.new(0, (i-1)*(sz+1)), ln, sz, col))
-    end
-end
-
-local function drawFullLogo(topLeft, sz, col)
-    sz = sz or 9; col = col or C.cream
-    for i, ln in ipairs(LOGO_FULL) do
-        alloc(t(topLeft + Vector2.new(0, (i-1)*(sz+1)), ln, sz, col))
-    end
-end
 
 -- ===== UI: WINDOW =====
 local function drawWindow()
@@ -150,10 +121,9 @@ local function drawWindow()
     alloc(r(p, s, C.surface, 0.95))
     alloc(r(p, Vector2.new(s.X, 2), C.accent, 1))
     alloc(r(p + Vector2.new(0, 2), Vector2.new(s.X, 48), C.bg, 0.6))
-    drawCompactLogo(p + Vector2.new(s.X - 124, 4))
     alloc(t(p + Vector2.new(14, 16), "itayoHub v2.0", 13, C.accent))
-    alloc(t(p + Vector2.new(14, 32), "Modern Roblox Executor", 9, C.textDim))
-    alloc(t(p + Vector2.new(s.X - 20, 16), "✕", 14, C.textDim, true))
+    alloc(t(p + Vector2.new(14, 32), "Delta Compatible", 9, C.textDim))
+    alloc(t(p + Vector2.new(s.X - 20, 16), "X", 14, C.textDim, true))
     alloc(l(p + Vector2.new(0, 50), p + Vector2.new(s.X, 50), C.border))
 end
 
@@ -162,7 +132,8 @@ local function drawTabs()
     local p, s = state.pos, state.size
     local tabY = p.Y + 52
     local tabW = math.floor((s.X - 20) / #tabs)
-    for i, name in ipairs(tabs) do
+    for i = 1, #tabs do
+        local name = tabs[i]
         local x = p.X + 10 + (i-1) * tabW
         local act = name == state.tab
         if act then alloc(r(Vector2.new(x+4, tabY+26), Vector2.new(tabW-8, 2), C.accent, 1)) end
@@ -207,7 +178,8 @@ local function drawColorStrip(y)
     alloc(t(Vector2.new(x, y), "ESP Color", 12, C.text))
     local sw = math.floor(280 / 5)
     local rainbow = {C.espRed, C.espOrange, C.espGreen, C.espCyan, C.espPurple}
-    for i, col in ipairs(rainbow) do
+    for i = 1, 5 do
+        local col = rainbow[i]
         alloc(r(Vector2.new(x+(i-1)*sw, y+16), Vector2.new(sw+1, 16), col, 0.9))
         if i == state.colorIdx then
             alloc(r(Vector2.new(x+(i-1)*sw-1, y+15), Vector2.new(sw+3, 18), Color3.new(1,1,1), 1, 2))
@@ -231,7 +203,7 @@ local function drawProfileCard(y)
     alloc(t(Vector2.new(p.X+53, y+28), uname:sub(1,1):upper(), 22, Color3.new(1,1,1), true))
     alloc(t(Vector2.new(p.X+90, y+14), uname, 16, C.text))
     local dname = lp.DisplayName
-    if dname ~= uname then alloc(t(Vector2.new(p.X+90, y+34), "@" .. dname, 11, C.textDim)) end
+    if dname ~= uname then alloc(t(Vector2.new(p.X+90, y+34), dname, 11, C.textDim)) end
     alloc(t(Vector2.new(p.X+90, y+50), "ID: " .. lp.UserId, 10, C.textDim))
 end
 
@@ -294,15 +266,15 @@ local function updateFly()
     if not root then return end
 
     local moveDir = Vector3.new(0, 0, 0)
-    if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camera.CFrame.LookVector end
-    if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camera.CFrame.LookVector end
-    if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camera.CFrame.RightVector end
-    if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camera.CFrame.RightVector end
-    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
-    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+    if UIS:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + camera.CFrame.LookVector end
+    if UIS:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - camera.CFrame.LookVector end
+    if UIS:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - camera.CFrame.RightVector end
+    if UIS:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + camera.CFrame.RightVector end
+    if UIS:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+    if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
 
     if moveDir.Magnitude > 0 then
-        if moveDir.Magnitude > 0 then moveDir = moveDir.Unit * 50 end
+        moveDir = moveDir.Unit * 50
         flyBodyVelocity.Velocity = moveDir
     else
         flyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
@@ -315,7 +287,7 @@ local infiniteJumpHook = nil
 
 local function toggleInfiniteJump(on)
     if on then
-        infiniteJumpHook = UserInputService.JumpRequest:Connect(function()
+        infiniteJumpHook = UIS.JumpRequest:Connect(function()
             local char = lp.Character
             if char then
                 local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -358,11 +330,11 @@ local function updateCrosshair()
     if #crosshairObjs == 0 then
         local cx = camera.ViewSizeX / 2
         local cy = camera.ViewSizeY / 2
-        local h1 = l(Vector2.new(cx - 10, cy), Vector2.new(cx + 10, cy), Color3.new(1,1,1), 1.5)
-        local h2 = l(Vector2.new(cx, cy - 10), Vector2.new(cx, cy + 10), Color3.new(1,1,1), 1.5)
-        crosshairObjs = {h1, h2}
+        crosshairObjs = {
+            l(Vector2.new(cx - 10, cy), Vector2.new(cx + 10, cy), Color3.new(1,1,1), 1.5),
+            l(Vector2.new(cx, cy - 10), Vector2.new(cx, cy + 10), Color3.new(1,1,1), 1.5),
+        }
     end
-    -- Update pos if screen resizes
     local cx, cy = camera.ViewSizeX / 2, camera.ViewSizeY / 2
     crosshairObjs[1].From = Vector2.new(cx - 10, cy)
     crosshairObjs[1].To = Vector2.new(cx + 10, cy)
@@ -409,160 +381,152 @@ local function updateESP()
         end
     end
 
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player == lp then continue end
-        local char = player.Character
-        if not char then continue end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if not root or not humanoid then continue end
+    local playerList = Players:GetPlayers()
+    for i = 1, #playerList do
+        local player = playerList[i]
+        if player == lp then
+            -- skip self — no continue keyword for delta compat
+        else
+            local char = player.Character
+            if char then
+                local root = char:FindFirstChild("HumanoidRootPart")
+                local humanoid = char:FindFirstChildOfClass("Humanoid")
+                if root and humanoid then
+                    local head = char:FindFirstChild("Head") or root
+                    local pos, onScreen = worldToScreen(root.Position)
+                    local headPos, _ = worldToScreen(head.Position + Vector3.new(0, 2, 0))
+                    if onScreen then
+                        -- Calculate box dimensions
+                        local scale = (root.Position - camera.CFrame.Position).Magnitude
+                        local boxH = math.clamp(18000 / scale, 20, 200)
+                        local boxW = boxH * 0.6
+                        local boxPos = Vector2.new(pos.X - boxW / 2, headPos.Y - boxH)
+                        local boxSize = Vector2.new(boxW, boxH + (pos.Y - headPos.Y))
 
-        local head = char:FindFirstChild("Head") or root
-        local pos, onScreen = worldToScreen(root.Position)
-        local headPos, _ = worldToScreen(head.Position + Vector3.new(0, 2, 0))
-        if not onScreen then
-            -- Hide ESP for offscreen players
-            if esp_objects[player] then
-                for _, o in pairs(esp_objects[player]) do
-                    pcall(function() o.Visible = false end)
+                        -- Create or get ESP objects for this player
+                        if not esp_objects[player] then
+                            esp_objects[player] = {
+                                box = r(Vector2.new(0,0), Vector2.new(0,0), espColor, 1, 1.5),
+                                boxFill = r(Vector2.new(0,0), Vector2.new(0,0), espColor, 0.1),
+                                tracer = l(Vector2.new(0,0), Vector2.new(0,0), espColor, 1.5),
+                                healthBg = r(Vector2.new(0,0), Vector2.new(0,0), Color3.new(0,0,0), 0.8),
+                                healthBar = r(Vector2.new(0,0), Vector2.new(0,0), C.espGreen, 1),
+                                nameTag = t(Vector2.new(0,0), "", 13, Color3.new(1,1,1), true),
+                            }
+                        end
+
+                        local objs = esp_objects[player]
+                        local hp = humanoid.Health / humanoid.MaxHealth
+
+                        -- Box
+                        if showBox then
+                            objs.box.Position = boxPos
+                            objs.box.Size = boxSize
+                            objs.box.Color = espColor
+                            objs.box.Visible = true
+                            objs.boxFill.Position = boxPos
+                            objs.boxFill.Size = boxSize
+                            objs.boxFill.Color = espColor
+                            objs.boxFill.Visible = true
+                            objs.boxFill.Transparency = 0.08
+                        else
+                            objs.box.Visible = false
+                            objs.boxFill.Visible = false
+                        end
+
+                        -- Tracer
+                        if showTracers then
+                            local cx, cy = camera.ViewSizeX / 2, camera.ViewSizeY
+                            objs.tracer.From = Vector2.new(cx, cy)
+                            objs.tracer.To = pos
+                            objs.tracer.Color = espColor
+                            objs.tracer.Visible = true
+                        else
+                            objs.tracer.Visible = false
+                        end
+
+                        -- Health Bar
+                        if showHealth then
+                            local hbW = 4
+                            local hbH = boxSize.Y
+                            local hbX = boxPos.X - hbW - 3
+                            local hbY = boxPos.Y
+                            objs.healthBg.Position = Vector2.new(hbX, hbY)
+                            objs.healthBg.Size = Vector2.new(hbW, hbH)
+                            objs.healthBg.Visible = true
+                            objs.healthBar.Position = Vector2.new(hbX, hbY + hbH * (1 - hp))
+                            objs.healthBar.Size = Vector2.new(hbW, hbH * hp)
+                            objs.healthBar.Color = Color3.new(1 - hp, hp, 0)
+                            objs.healthBar.Visible = true
+                        else
+                            objs.healthBg.Visible = false
+                            objs.healthBar.Visible = false
+                        end
+
+                        -- Name Tag
+                        if showName then
+                            objs.nameTag.Position = Vector2.new(boxPos.X + boxSize.X / 2, boxPos.Y - 16)
+                            objs.nameTag.Text = player.Name
+                            objs.nameTag.Color = espColor
+                            objs.nameTag.Visible = true
+                        else
+                            objs.nameTag.Visible = false
+                        end
+
+                        -- Chams via Highlight
+                        if showChams then
+                            if not objs.highlight then
+                                local h = Instance.new("Highlight")
+                                h.FillColor = espColor
+                                h.OutlineColor = Color3.new(1,1,1)
+                                h.FillTransparency = 0.5
+                                h.OutlineTransparency = 0
+                                h.Parent = char
+                                objs.highlight = h
+                            end
+                            objs.highlight.Enabled = true
+                        else
+                            if objs.highlight then
+                                objs.highlight.Enabled = false
+                            end
+                        end
+                    else
+                        -- Offscreen: hide ESP
+                        if esp_objects[player] then
+                            for _, o in pairs(esp_objects[player]) do
+                                pcall(function() o.Visible = false end)
+                            end
+                        end
+                    end
                 end
-            end
-            continue
-        end
-
-        -- Calculate box dimensions
-        local scale = (root.Position - camera.CFrame.Position).Magnitude
-        local boxH = math.clamp(18000 / scale, 20, 200)
-        local boxW = boxH * 0.6
-        local boxPos = Vector2.new(pos.X - boxW / 2, headPos.Y - boxH)
-        local boxSize = Vector2.new(boxW, boxH + (pos.Y - headPos.Y))
-
-        -- Create or get ESP objects for this player
-        if not esp_objects[player] then
-            esp_objects[player] = {
-                box = r(Vector2.new(0,0), Vector2.new(0,0), espColor, 1, 1.5),
-                boxFill = r(Vector2.new(0,0), Vector2.new(0,0), espColor, 0.1),
-                tracer = l(Vector2.new(0,0), Vector2.new(0,0), espColor, 1.5),
-                healthBg = r(Vector2.new(0,0), Vector2.new(0,0), Color3.new(0,0,0), 0.8),
-                healthBar = r(Vector2.new(0,0), Vector2.new(0,0), C.espGreen, 1),
-                nameTag = t(Vector2.new(0,0), "", 13, Color3.new(1,1,1), true),
-            }
-        end
-
-        local objs = esp_objects[player]
-        local hp = humanoid.Health / humanoid.MaxHealth
-
-        -- Box
-        if showBox then
-            objs.box.Position = boxPos
-            objs.box.Size = boxSize
-            objs.box.Color = espColor
-            objs.box.Visible = true
-            objs.boxFill.Position = boxPos
-            objs.boxFill.Size = boxSize
-            objs.boxFill.Color = espColor
-            objs.boxFill.Visible = true
-            objs.boxFill.Transparency = 0.08
-        else
-            objs.box.Visible = false
-            objs.boxFill.Visible = false
-        end
-
-        -- Tracer
-        if showTracers then
-            local cx, cy = camera.ViewSizeX / 2, camera.ViewSizeY
-            objs.tracer.From = Vector2.new(cx, cy)
-            objs.tracer.To = pos
-            objs.tracer.Color = espColor
-            objs.tracer.Visible = true
-        else
-            objs.tracer.Visible = false
-        end
-
-        -- Health Bar
-        if showHealth then
-            local hbW = 4
-            local hbH = boxSize.Y
-            local hbX = boxPos.X - hbW - 3
-            local hbY = boxPos.Y
-            objs.healthBg.Position = Vector2.new(hbX, hbY)
-            objs.healthBg.Size = Vector2.new(hbW, hbH)
-            objs.healthBg.Visible = true
-            objs.healthBar.Position = Vector2.new(hbX, hbY + hbH * (1 - hp))
-            objs.healthBar.Size = Vector2.new(hbW, hbH * hp)
-            objs.healthBar.Color = Color3.new(1 - hp, hp, 0)
-            objs.healthBar.Visible = true
-        else
-            objs.healthBg.Visible = false
-            objs.healthBar.Visible = false
-        end
-
-        -- Name Tag
-        if showName then
-            objs.nameTag.Position = Vector2.new(boxPos.X + boxSize.X / 2, boxPos.Y - 16)
-            objs.nameTag.Text = player.Name
-            objs.nameTag.Color = espColor
-            objs.nameTag.Visible = true
-        else
-            objs.nameTag.Visible = false
-        end
-
-        -- Chams (highlight effect via BillboardGui)
-        if showChams then
-            -- Note: Chams with Drawing API is limited.
-            -- Using Highlight instance for better effect.
-            if not objs.highlight then
-                local h = Instance.new("Highlight")
-                h.FillColor = espColor
-                h.OutlineColor = Color3.new(1,1,1)
-                h.FillTransparency = 0.5
-                h.OutlineTransparency = 0
-                h.Parent = char
-                objs.highlight = h
-            end
-            objs.highlight.Enabled = true
-        else
-            if objs.highlight then
-                objs.highlight.Enabled = false
             end
         end
     end
 end
 
 -- ====================================================================
--- CHEAT CONTROLLER (runs per frame)
+-- CHEAT CONTROLLER
 -- ====================================================================
 
 local function runCheats()
-    -- Speed (runs in loop via RenderStepped)
     speedLoop()
-
-    -- Fly (update velocity)
     if state.toggles["Fly"] then
         updateFly()
     elseif flyBodyVelocity then
         toggleFly(false)
     end
-
-    -- Noclip
     noclipLoop()
-
-    -- Infinite Jump (handled via event)
     if state.toggles["Infinite Jump"] and not infiniteJumpHook then
         toggleInfiniteJump(true)
     elseif not state.toggles["Infinite Jump"] and infiniteJumpHook then
         toggleInfiniteJump(false)
     end
-
-    -- Crosshair
     updateCrosshair()
-
-    -- ESP
     updateESP()
 end
 
 -- ====================================================================
--- INTERACTION (click/touch handlers)
+-- INTERACTION
 -- ====================================================================
 
 local function isInside(pos, size, point)
@@ -598,7 +562,8 @@ local function handleClick(input)
     -- Tabs
     local tabY = p.Y + 52
     local tabW = math.floor((s.X - 20) / #tabs)
-    for i, name in ipairs(tabs) do
+    for i = 1, #tabs do
+        local name = tabs[i]
         local tx = p.X + 10 + (i-1) * tabW
         if isInside(Vector2.new(tx, tabY), Vector2.new(tabW, 28), pos) then
             state.tab = name
@@ -606,7 +571,7 @@ local function handleClick(input)
         end
     end
 
-    -- Toggles (dynamic based on active tab)
+    -- Toggles
     local toggleData
     if state.tab == "Player" then
         toggleData = {{"Speed",false},{"Fly",false},{"Infinite Jump",false},{"Noclip",false}}
@@ -616,24 +581,14 @@ local function handleClick(input)
         toggleData = {{"Show Watermark",true},{"Show FPS",false},{"Auto-Execute",false}}
     end
     if toggleData then
-        for i, v in ipairs(toggleData) do
+        for i = 1, #toggleData do
+            local item = toggleData[i]
             local ty = p.Y + 96 + (i-1) * 34
             if isInside(Vector2.new(p.X + 16, ty), Vector2.new(34, 22), pos) then
-                state.toggles[v[1]] = not (state.toggles[v[1]] ~= nil and state.toggles[v[1]])
-                if state.toggles[v[1]] == nil then state.toggles[v[1]] = not v[2] end
+                local cur = state.toggles[item[1]]
+                state.toggles[item[1]] = not (cur ~= nil and cur)
                 return
             end
-        end
-    end
-
-    -- Reset button
-    if state.tab == "Settings" then
-        local ry = p.Y + 346 + 3*34 + 12
-        if isInside(Vector2.new(p.X+16, ry), Vector2.new(120, 28), pos) then
-            state.toggles = {}
-            state.sliders = { WalkSpeed = 50, JumpPower = 50, Smoothness = 0.5 }
-            state.colorIdx = 1
-            return
         end
     end
 
@@ -647,6 +602,17 @@ local function handleClick(input)
                 state.colorIdx = i
                 return
             end
+        end
+    end
+
+    -- Reset button
+    if state.tab == "Settings" then
+        local ry = p.Y + 346 + 3*34 + 12
+        if isInside(Vector2.new(p.X+16, ry), Vector2.new(120, 28), pos) then
+            state.toggles = {}
+            state.sliders = { WalkSpeed = 50, JumpPower = 50, Smoothness = 0.5 }
+            state.colorIdx = 1
+            return
         end
     end
 end
@@ -685,18 +651,16 @@ local function render()
 
     if state.tab == "Player" then
         drawSection(p.Y+86, "MOVEMENT")
-        for i, v in ipairs({{"Speed",false},{"Fly",false},{"Infinite Jump",false},{"Noclip",false}}) do
-            drawToggle(i, v[1], v[2])
-        end
+        local pd = {{"Speed",false},{"Fly",false},{"Infinite Jump",false},{"Noclip",false}}
+        for i = 1, #pd do drawToggle(i, pd[i][1], pd[i][2]) end
         drawSection(p.Y + 86 + 4*34 + 8, "CHARACTER")
         drawSlider(1, "WalkSpeed", state.sliders.WalkSpeed or 50, 16, 200)
         drawSlider(2, "JumpPower", state.sliders.JumpPower or 50, 50, 350)
 
     elseif state.tab == "Visuals" then
         drawSection(p.Y+86, "ESP")
-        for i, v in ipairs({{"Box ESP",true},{"Tracers",false},{"Health Bar",true},{"Name Tag",true},{"Chams",false}}) do
-            drawToggle(i, v[1], v[2])
-        end
+        local vd = {{"Box ESP",true},{"Tracers",false},{"Health Bar",true},{"Name Tag",true},{"Chams",false}}
+        for i = 1, #vd do drawToggle(i, vd[i][1], vd[i][2]) end
         drawSection(p.Y + 86 + 5*34 + 8, "MISC")
         drawToggle(6, "Crosshair", true)
         drawSlider(1, "Smoothness", state.sliders.Smoothness or 0.5, 0, 1)
@@ -706,11 +670,10 @@ local function render()
         drawSection(p.Y+86, "PROFILE")
         drawProfileCard(p.Y+104)
         drawSection(p.Y+186, "ABOUT")
-        drawFullLogo(p + Vector2.new(24, 204), 9, C.cream)
         local cx = p.X + s.X/2
-        alloc(t(Vector2.new(cx, p.Y+290), "itayoHub v2.0", 14, C.accent, true))
-        alloc(t(Vector2.new(cx, p.Y+308), "Modern Roblox Executor", 11, C.textDim, true))
-        alloc(t(Vector2.new(cx, p.Y+330), "Built with Lua by Hermes Agent", 9, C.textDim, true))
+        alloc(t(Vector2.new(cx, p.Y+200), "itayoHub v2.0", 16, C.accent, true))
+        alloc(t(Vector2.new(cx, p.Y+222), "Delta Executor Compatible", 12, C.textDim, true))
+        alloc(t(Vector2.new(cx, p.Y+244), "Built with Lua by Hermes Agent", 10, C.textDim, true))
         drawSection(p.Y+346, "UI")
         drawToggle(1, "Show Watermark", true)
         drawToggle(2, "Show FPS", false)
@@ -720,11 +683,10 @@ local function render()
         alloc(t(Vector2.new(p.X+76, ry+6), "Reset Config", 12, Color3.new(1,1,1), true))
     end
 
-    -- Run cheat functions
     runCheats()
 end
 
-RunService.RenderStepped:Connect(render)
+local renderConnection = RunService.RenderStepped:Connect(render)
 
 -- Cleanup on teleport
 lp.OnTeleport:Connect(function()
@@ -734,5 +696,5 @@ lp.OnTeleport:Connect(function()
     if infiniteJumpHook then infiniteJumpHook:Disconnect(); infiniteJumpHook = nil end
 end)
 
-print("itayoHub loaded — tabs: Player | Visuals | Settings")
-print("Cheats: Speed, Fly, Infinite Jump, Noclip, ESP (Box/Tracer/Health/Name/Chams), Crosshair")
+print("itayoHub v2.0 loaded — Tabs: Player | Visuals | Settings")
+print("Cheats: Speed, Fly, Infinite Jump, Noclip, ESP, Crosshair")
